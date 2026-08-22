@@ -7,6 +7,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@google/adk-devtools": "^2.0.0",
     "@types/bun": "latest",
     "prisma": "^7.9.1"
   },
@@ -15,6 +16,9 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
+    "@google/adk": "^2.0.0",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@types/cors": "^2.8.19",

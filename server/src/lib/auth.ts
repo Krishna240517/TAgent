@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { prisma } from "./db.js";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { env } from "../env.js";
-import { deviceAuthorization } from "better-auth/plugins";
+import { bearer, deviceAuthorization } from "better-auth/plugins";
 
 
 export const auth = betterAuth({
@@ -22,7 +22,8 @@ export const auth = betterAuth({
         deviceAuthorization({
             expiresIn: "45m",
             interval: "5s"
-        })
+        }),
+        bearer()
     ],
 
     logger: {
