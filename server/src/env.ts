@@ -17,4 +17,7 @@ export const env = {
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID!,
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET!,
+    DAYTONA_API_KEY: process.env.DAYTONA_API_KEY!,
+    DAYTONA_API_URL: process.env.DAYTONA_API_URL!,
+    DAYTONA_TARGET: process.env.DAYTONA_TARGET!
 };

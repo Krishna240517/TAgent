@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import figlet from "figlet";
 import { login, logout, whoami } from "./command/auth/auth.js";
+import { dockerLogin, dockerLogout } from "./command/auth/docker.auth.js";
 const main = async () => {
     console.log(
         chalk.cyan(
@@ -23,6 +24,8 @@ const main = async () => {
     program.addCommand(login);
     program.addCommand(logout);
     program.addCommand(whoami);
+    program.addCommand(dockerLogin);
+    program.addCommand(dockerLogout);
 
     program.action(() => {
         program.help();
