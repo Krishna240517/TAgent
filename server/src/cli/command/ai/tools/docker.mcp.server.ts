@@ -273,6 +273,324 @@ server.registerTool(
     }
 );
 
+server.registerTool(
+    "stop_container",
+    {
+        title: "Stop Container",
+        description: "Gracefully stop a running Docker container.",
 
+        inputSchema: {
+            containerIdOrName: z.string().min(1),
+
+            timeout: z
+                .number()
+                .int()
+                .min(0)
+                .optional()
+                .default(10)
+                .describe("Seconds to wait before Docker kills the container"),
+        },
+    },
+
+    async ({ containerIdOrName, timeout }) => {
+        try {
+            const container = docker.getContainer(containerIdOrName);
+
+            await container.stop({
+                t: timeout,
+            });
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Container '${containerIdOrName}' stopped successfully.`,
+                    },
+                ],
+            };
+        } catch (error) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: `Docker Error: ${dockerError(error)}`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+server.registerTool(
+    "remove_container",
+    {
+        title: "Remove Container",
+        description:
+            "Remove a Docker container. Force can be used to remove a running container.",
+
+        inputSchema: {
+            containerIdOrName: z.string().min(1),
+
+            force: z
+                .boolean()
+                .optional()
+                .default(false)
+                .describe("Force remove a running container"),
+
+            volumes: z
+                .boolean()
+                .optional()
+                .default(false)
+                .describe("Remove anonymous volumes attached to the container"),
+        },
+    },
+
+    async ({ containerIdOrName, force, volumes }) => {
+        try {
+            const container = docker.getContainer(containerIdOrName);
+
+            await container.remove({
+                force,
+                v: volumes,
+            });
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Container '${containerIdOrName}' removed successfully.`,
+                    },
+                ],
+            };
+        } catch (error) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: `Docker Error: ${dockerError(error)}`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+/**
+ * Container logs
+ */
+server.registerTool(
+    "container_logs",
+    {
+        title: "Container Logs",
+        description:
+            "Retrieve stdout and stderr logs from a Docker container.",
+
+        inputSchema: {
+            containerIdOrName: z.string().min(1),
+
+            tail: z
+                .number()
+                .int()
+                .min(1)
+                .optional()
+                .default(100)
+                .describe("Number of log lines to return"),
+
+            timestamps: z
+                .boolean()
+                .optional()
+                .default(false),
+        },
+    },
+
+    async ({ containerIdOrName, tail, timestamps }) => {
+        try {
+            const container = docker.getContainer(containerIdOrName);
+
+            const logs = await container.logs({
+                stdout: true,
+                stderr: true,
+                tail,
+                timestamps,
+            });
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: logs.toString("utf-8"),
+                    },
+                ],
+            };
+        } catch (error) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: `Docker Error: ${dockerError(error)}`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+/**
+ * ---------------------------------------------------------
+ * IMAGE TOOLS
+ * ---------------------------------------------------------
+ */
+
+/**
+ * Pull image
+ */
+server.registerTool(
+    "pull_image",
+    {
+        title: "Pull Docker Image",
+        description:
+            "Pull a Docker image from a remote registry.",
+
+        inputSchema: {
+            repository: z
+                .string()
+                .min(1)
+                .describe("Image repository, e.g. nginx"),
+
+            tag: z
+                .string()
+                .optional()
+                .default("latest")
+                .describe("Image tag"),
+        },
+    },
+
+    async ({ repository, tag }) => {
+        try {
+            await pullImageInternal(repository, tag);
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Successfully pulled ${repository}:${tag}`,
+                    },
+                ],
+            };
+        } catch (error) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: `Docker Error: ${dockerError(error)}`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+server.registerTool(
+    "list_images",
+    {
+        title: "List Docker Images",
+        description: "List Docker images available locally.",
+
+        inputSchema: {},
+    },
+
+    async () => {
+        try {
+            const images = await docker.listImages();
+
+            const result = images.map((image) => ({
+                id: image.Id.replace(/^sha256:/, "").substring(0, 12),
+
+                tags: image.RepoTags || [],
+
+                size_mb: Number(
+                    (image.Size / (1024 * 1024)).toFixed(2)
+                ),
+
+                created: image.Created,
+            }));
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: JSON.stringify(result, null, 2),
+                    },
+                ],
+            };
+        } catch (error) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: `Docker Error: ${dockerError(error)}`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+
+server.registerTool(
+    "remove_image",
+    {
+        title: "Remove Docker Image",
+        description:
+            "Remove a locally available Docker image.",
+
+        inputSchema: {
+            image: z
+                .string()
+                .min(1)
+                .describe("Image name, tag or ID"),
+
+            force: z
+                .boolean()
+                .optional()
+                .default(false)
+                .describe("Force removal"),
+        },
+    },
+
+    async ({ image, force }) => {
+        try {
+            const dockerImage = docker.getImage(image);
+
+            await dockerImage.remove({
+                force,
+            });
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Image '${image}' removed successfully.`,
+                    },
+                ],
+            };
+        } catch (error) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: `Docker Error: ${dockerError(error)}`,
+                    },
+                ],
+            };
+        }
+    }
+);
 
 export default server;
