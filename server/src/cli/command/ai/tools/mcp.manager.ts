@@ -1,8 +1,6 @@
 import { MCPToolset } from "@google/adk";
 import { getGithubAccessToken } from "../../../../lib/github.token.js";
 import { getStoredDockerCreds } from "../../auth/docker.auth.js";
-import os from "os";
-import path from "path";
 
 
 
@@ -23,8 +21,6 @@ export class MCPManager {
     private async initialize(): Promise<void> {
         this.servers.set("github", await this.createGithubToolSet());
         this.servers.set("docker-hub", await this.createDockerHubToolSet());
-        this.servers.set("docker-local",this.createDockerLocalToolSet());
-        this.servers.set("kubernetes",this.createKubernetesToolSet());
     }
 
     private async createGithubToolSet(): Promise<MCPToolset> {
@@ -76,40 +72,6 @@ export class MCPManager {
 
         return dockerMcpToolSet;
     }
-
-    private createDockerLocalToolSet(): MCPToolset {
-        return new MCPToolset({
-            type: "StdioConnectionParams",
-            serverParams: {
-                command: "npx",
-                args: [
-                    "-y",
-                    "@hypnosis/docker-mcp-server" // <-- This handles LOCAL containers
-                ]
-            }
-        });
-    }
-
-    private createKubernetesToolSet(): MCPToolset {
-        const kubeConfigPath = path.join(os.homedir(), ".kube", "config");
-        return new MCPToolset({
-            type:"StdioConnectionParams",
-            serverParams: {
-                command:"npx",
-                args:[
-                    "-y",
-                    "@smithery/kubernetes-mcp-server@latest"
-                ],
-                env:{
-                    KUBECONFIG: kubeConfigPath,
-                    PATH: process.env.PATH
-                }
-            }
-        });
-    }
-    /**
-     One architectural point for your project: later, when your agent runs inside your GKE sandbox, don't blindly reuse the host's ~/.kube/config. The Kubernetes MCP server supports in-cluster configuration, so the sandbox can authenticate to its Kubernetes cluster using its service-account identity instea
-     */
 
     getTools(server: string): MCPToolset | undefined {
         return this.servers.get(server);
