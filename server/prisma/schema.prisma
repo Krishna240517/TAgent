@@ -18,6 +18,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  conversations Conversation[]
 
   @@unique([email])
   @@map("user")
@@ -84,4 +85,286 @@ model DeviceCode {
   scope           String?
 
   @@map("deviceCode")
+}
+// ============================================================
+// CONVERSATION & DOMAIN MODELS
+// ============================================================
+
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String
+  mode      Mode     @default(CHAT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  context       ConversationContext?
+  agentSessions AgentSession[]
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model ConversationContext {
+  id                   String   @id @default(cuid())
+  conversationId       String   @unique
+  purpose              String?
+  implementationPlanId String?  @unique
+  updatedAt            DateTime @updatedAt
+
+  conversation       Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  implementationPlan ImplementationPlan? @relation(fields: [implementationPlanId], references: [id])
+  
+  requirements Requirement[]
+  constraints  Constraint[]
+  assumptions  Assumption[]
+  decisions    Decision[]
+  discoveries  Discovery[]
+}
+
+model Requirement {
+  id          String            @id @default(cuid())
+  contextId   String
+  description String
+  status      RequirementStatus @default(ACTIVE)
+  priority    Priority?
+  createdAt   DateTime          @default(now())
+
+  context ConversationContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+}
+
+model Constraint {
+  id          String           @id @default(cuid())
+  contextId   String
+  description String
+  status      ConstraintStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+
+  context ConversationContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+}
+
+model Assumption {
+  id          String           @id @default(cuid())
+  contextId   String
+  description String
+  status      AssumptionStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+
+  context ConversationContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+}
+
+model Decision {
+  id           String         @id @default(cuid())
+  contextId    String
+  topic        String
+  currentValue String
+  userApproved Boolean        @default(false)
+  status       DecisionStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  context ConversationContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  history DecisionHistory[]
+}
+
+model DecisionHistory {
+  id         String                @id @default(cuid())
+  decisionId String
+  value      String
+  status     DecisionHistoryStatus
+  createdAt  DateTime              @default(now())
+
+  decision Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+}
+
+model Discovery {
+  id                    String          @id @default(cuid())
+  contextId             String
+  description           String
+  source                DiscoverySource
+  status                DiscoveryStatus
+  requiresApproval      Boolean         @default(false)
+  conflictingDecisionId String?
+  createdAt             DateTime        @default(now())
+
+  context ConversationContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+}
+
+model ImplementationPlan {
+  id        String     @id @default(cuid())
+  goal      String
+  status    PlanStatus @default(DRAFT)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  context       ConversationContext?
+  steps         PlanStep[]
+  agentSessions AgentSession[]
+}
+
+model PlanStep {
+  id          String         @id @default(cuid())
+  planId      String
+  title       String
+  description String
+  status      PlanStepStatus @default(PENDING)
+  order       Int
+
+  plan ImplementationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, order])
+}
+
+model AgentSession {
+  id                   String      @id @default(cuid())
+  conversationId       String
+  implementationPlanId String?
+  status               AgentStatus @default(IDLE)
+  contextSnapshot      Json
+  startedAt            DateTime    @default(now())
+  completedAt          DateTime?
+
+  conversation       Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  implementationPlan ImplementationPlan? @relation(fields: [implementationPlanId], references: [id])
+  
+  tasks     AgentTask[]
+  toolCalls ToolCall[]
+
+  @@index([conversationId])
+}
+
+model AgentTask {
+  id             String          @id @default(cuid())
+  agentSessionId String
+  title          String
+  description    String
+  status         AgentTaskStatus @default(PENDING)
+
+  agentSession AgentSession @relation(fields: [agentSessionId], references: [id], onDelete: Cascade)
+}
+
+model ToolCall {
+  id             String         @id @default(cuid())
+  agentSessionId String
+  toolName       String
+  input          Json
+  output         Json?
+  status         ToolCallStatus @default(PENDING)
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  agentSession AgentSession @relation(fields: [agentSessionId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Mode {
+  CHAT
+  AGENT
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RequirementStatus {
+  ACTIVE
+  COMPLETED
+  REJECTED
+}
+
+enum ConstraintStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum AssumptionStatus {
+  ACTIVE
+  INVALIDATED
+}
+
+enum DecisionStatus {
+  ACTIVE
+  REJECTED
+}
+
+enum DecisionHistoryStatus {
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+}
+
+enum DiscoverySource {
+  AGENT
+  TOOL
+  REPOSITORY
+  USER
+}
+
+enum DiscoveryStatus {
+  NEW
+  ACCEPTED
+  REJECTED
+  CONFLICTS_WITH_DECISION
+}
+
+enum PlanStatus {
+  DRAFT
+  READY
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum PlanStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  FAILED
+}
+
+enum AgentStatus {
+  IDLE
+  PLANNING
+  EXECUTING
+  WAITING_FOR_USER
+  COMPLETED
+  FAILED
+}
+
+enum AgentTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  BLOCKED
+}
+
+enum ToolCallStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
 }

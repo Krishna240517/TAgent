@@ -65,7 +65,7 @@ export class MCPManager {
                     `--username=${dockerCreds?.username}`
                 ],
                 env: {
-                    HUB_PAT_TOKEN: dockerCreds?.patToken ?? "";
+                    HUB_PAT_TOKEN: dockerCreds?.patToken ?? ""
                 }
             }
         })

@@ -19,5 +19,10 @@ export const env = {
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET!,
     DAYTONA_API_KEY: process.env.DAYTONA_API_KEY!,
     DAYTONA_API_URL: process.env.DAYTONA_API_URL!,
-    DAYTONA_TARGET: process.env.DAYTONA_TARGET!
+    DAYTONA_TARGET: process.env.DAYTONA_TARGET!,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY!,
+    GEMINI_MODEL: process.env.GEMINI_MODEL!,
+    QDRANT_URL: process.env.QDRANT_URL!,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY!,
+    MEM0_API_KEY: process.env.MEM0_API_KEY!
 };
