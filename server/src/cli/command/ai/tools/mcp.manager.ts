@@ -1,6 +1,7 @@
 import { MCPToolset } from "@google/adk";
 import { getGithubAccessToken } from "../../../../lib/github.token.js";
 import { getStoredDockerCreds } from "../../auth/docker.auth.js";
+import { env } from "../../../../env.js";
 
 
 
@@ -21,6 +22,8 @@ export class MCPManager {
     private async initialize(): Promise<void> {
         this.servers.set("github", await this.createGithubToolSet());
         this.servers.set("docker-hub", await this.createDockerHubToolSet());
+        this.servers.set("docker-local",this.createDockerLocalToolSet());
+        this.servers.set("filesystem",this.createFileSystemToolSet());
     }
 
     private async createGithubToolSet(): Promise<MCPToolset> {
@@ -65,7 +68,7 @@ export class MCPManager {
                     `--username=${dockerCreds?.username}`
                 ],
                 env: {
-                    HUB_PAT_TOKEN: dockerCreds?.patToken ?? "";
+                    HUB_PAT_TOKEN: dockerCreds?.patToken ?? ""
                 }
             }
         })
@@ -73,6 +76,37 @@ export class MCPManager {
         return dockerMcpToolSet;
     }
 
+    private createDockerLocalToolSet(): MCPToolset {
+        return new MCPToolset({
+            type:"StdioConnectionParams",
+            serverParams: {
+                command:"npx",
+                args:["tsx","./docker.local.config.ts"],
+                env:{...env}
+            }
+        })
+    }
+    private createFileSystemToolSet(): MCPToolset {
+        const projectRoot = process.cwd();
+
+
+
+        return new MCPToolset({
+            type:"StdioConnectionParams",
+
+            serverParams: {
+                command: "npx",
+                args:[
+                    "-y",
+                    "@modelcontextprotocol/server-filesystem",
+                    projectRoot
+                ],
+                env: {
+                    ...env
+                }
+            }
+        });
+    }
     getTools(server: string): MCPToolset | undefined {
         return this.servers.get(server);
     }
